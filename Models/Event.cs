@@ -17,7 +17,7 @@ namespace MyApi.Models
 
         }
 
-        public Guid id { get; set; }
+        public int id { get; set; }
 
         public string? Title { get; set; }
         public string? Description { get; set; }
@@ -27,6 +27,12 @@ namespace MyApi.Models
         public DateTime EndDate { get; set; }
 
         public bool isDeleted { get; set; }
+
+        
+        public string StartDateString { get; set; }
+
+    
+        public string EndDateString { get; set; }
 
         List<EventSpeaker> Speakers { get; set; }
 

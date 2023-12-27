@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MyApi.Data;
 using MyApi.Models;
-using MyApi.Persistence;
+
 
 namespace MyApi.Controllers
 {
@@ -12,72 +15,92 @@ namespace MyApi.Controllers
     [Route("api/Events")]
     public class EventsController : ControllerBase
     {
-        private readonly EventsDbContext _context;
-        public EventsController(EventsDbContext context)
+        private readonly AppDbContext appDbContext;
+        public EventsController(AppDbContext context)
         {
-            _context = context;
+            appDbContext = context;
         }
 
 
         [HttpGet]
-
-        public IActionResult GetAll()
+        public async Task<ActionResult<List<Event>>> GetEvents()
         {
-            var Events = _context.EventsList.Where(e => !e.isDeleted).ToList();
-            return Ok(Events);
+            var events = await appDbContext.Events.ToListAsync();
+            return Ok(events);
         }
 
-
         [HttpGet("{id}")]
-        public IActionResult GetById(Guid id)
+        public async Task<ActionResult<List<Event>>> GetEventById(int id)
         {
-            var Events = _context.EventsList.SingleOrDefault(e => e.id == id);
-            if (Events == null)
+            var events = await appDbContext.Events.FirstOrDefaultAsync(e => e.id == id);
+            if (events != null)
             {
-                return NotFound();
+                return Ok(events);
             }
-            return Ok(Events);
+            return NotFound();
         }
 
 
         [HttpPost]
-        public IActionResult Post([FromBody]Event evento)
+        public async Task<ActionResult<List<Event>>> AddEvent(Event newEvent)
         {
-            _context.EventsList.Add(evento);
 
-            return CreatedAtAction(nameof(GetById), new { id = evento.id }, evento);
+            if (newEvent != null)
+            {
+                if (!string.IsNullOrWhiteSpace(newEvent.StartDateString))
+                {
+                    newEvent.StartDate = DateTime.ParseExact(newEvent.StartDateString, "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+                }
+
+                if (!string.IsNullOrWhiteSpace(newEvent.EndDateString))
+                {
+                    newEvent.EndDate = DateTime.ParseExact(newEvent.EndDateString, "yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+                }
+
+
+                appDbContext.Events.Add(newEvent);
+                await appDbContext.SaveChangesAsync();
+                return await appDbContext.Events.ToListAsync();
+            }
+            return BadRequest();
         }
 
 
-
         [HttpPut("{id}")]
-        public IActionResult Update(Guid id, Event input)
+        public async Task<ActionResult<List<Event>>> UpdateEvent(Event updatedEvent, int id)
         {
-            var Events = _context.EventsList.SingleOrDefault(e => e.id == id);
-            if (Events == null)
+
+            var events = await appDbContext.Events.FirstOrDefaultAsync(e => e.id == id);
+            if (updatedEvent != null)
             {
-                return NotFound();
+                if (events != null)
+                {
+                    events.Title = updatedEvent.Title;
+                    events.Description = updatedEvent.Description;
+                    events.StartDate = updatedEvent.StartDate;
+                    events.EndDate = updatedEvent.EndDate;
+                    await appDbContext.SaveChangesAsync();
+                }
             }
+            return BadRequest();
 
-            Events.Update(input.Title, input.Description, input.StartDate, input.EndDate);
 
-
-            return NoContent();
         }
 
 
 
 
         [HttpDelete("{id}")]
-        public IActionResult Delete(Guid id, Event evento)
+        public async Task<ActionResult<List<Event>>> DeleteEvent(int id)
         {
-            var Events = _context.EventsList.SingleOrDefault(e => e.id == id);
-            if (Events == null)
+
+            var events = await appDbContext.Events.FirstOrDefaultAsync(e => e.id == id);
+            if (events != null)
             {
-                return NotFound();
+                appDbContext.Events.Remove(events);
+                await appDbContext.SaveChangesAsync();
             }
 
-            Events.Delete();
             return NoContent();
         }
 
